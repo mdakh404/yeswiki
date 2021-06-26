@@ -1,0 +1,85 @@
+<h3>{{ _t('MEDIA_FILES_DIR_LISTING') }}</h3>
+  <h4>{{ _t('MEDIA_EXPLANATIONS') }}</h4>
+    <p>{{ _t('MEDIA_FILE') ~ ' => ' ~ _t('MEDIA_FILE_EXPLANATION') }}</p>
+    <p>{{ _t('MEDIA_NAME') ~ ' => ' ~ _t('MEDIA_NAME_EXPLANATION') }}</p>
+    <p>{{ _t('MEDIA_UPLOAD_TIME') ~ ' => ' ~ _t('MEDIA_UPLOAD_TIME_EXPLANATION') }}</p>
+    <p>{{ _t('MEDIA_PAGE') ~ ' => ' ~ _t('MEDIA_PAGE_EXPLANATION') }}</p>
+    <p>{{ _t('MEDIA_PAGE_VERSION') ~ ' => ' ~ _t('MEDIA_PAGE_VERSION_EXPLANATION') }}</p>
+    <p>{{ _t('MEDIA_VERSION') ~ ' => ' ~ _t('MEDIA_VERSION_EXPLANATION') }}</p>
+  <h4>{{ _t('MEDIA_NOTICES') }}</h4>
+  {% for tag in emptyAttachTags %}
+    <p>{{ _t('MEDIA_FOLLOWING_PAGE_CONTAINS_EMPTY_ATTACH') }} : {{ tag }}</p>
+  {% endfor %}
+  {# Files table display #}
+  <table class="table table-striped table-condensed table-hover" style="table-layout: fixed;">
+    <thead>
+      <tr>
+        <th style="min-width: 25%;">{{ _t('MEDIA_FILE') }}</th>
+        <th style="min-width: 25%;">{{ _t('MEDIA_NAME') }}</th>
+        <th>{{ _t('MEDIA_UPLOAD_TIME') }}</th>
+        <th>{{ _t('MEDIA_PAGE') }}</th>
+        <th>{{ _t('MEDIA_PAGE_VERSION') }}</th>
+        <th>{{ _t('MEDIA_VERSION') }}</th>
+        <th> </th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for file,fileDisplay in filesDisplay %}
+	    <tr>
+        {% if fileDisplay.bazar %} {# A bazar record #}
+		    	<td colspan="3" style="min-width: 50%; white-space: normal !important; word-wrap: break-word;">{{ file }}</td>
+		    	<td colspan="3" style="white-space: normal !important; word-wrap: break-word;">{{ (fileDisplay.page ~ fileDisplay.additionalPageText)|nl2br }}</td>
+		    	<td> </td> {# No delete button #}
+        {% elseif  fileDisplay.page is null %} {# We have a problem #}
+		    	<td colspan="3" style="min-width: 50%; white-space: normal !important; word-wrap: break-word;">{{ _t('MEDIA_UNABLE_TO_UNDERSTAND_FILE_NAME') }}<br />{{ file }}</td>
+          <td colspan="3"> </td> {# No others cols #}
+		    	<td>{{ block('deleteButton') }}</td>
+        {% elseif  fileDisplay.media is null %} {#  not found #}
+		    	<td colspan="6" style="min-width: 50%; white-space: normal !important; word-wrap: break-word;">{{ _t('MEDIA_UNABLE_TO_UNDERSTAND_FILE_NAME') }}<br />{{ file }}</td>
+		    	<td>{{ block('deleteButton') }}</td>
+        {% else %} {# Real Wiki page #}
+		      {# 1st col, MEDIA_FILE #}
+		    	<td style="min-width: 25%; white-space: normal !important; word-wrap: break-word;">{{ file }}</td>
+		      {# 2nd col, MEDIA_NAME #}
+		    	<td style="min-width: 25%; white-space: normal !important; word-wrap: break-word;">{{ fileDisplay.media|nl2br }}</td>
+		      {# 3rd col, MEDIA_UPLOAD_TIME #}
+		      {% set time = fileDisplay.time %}
+		    	<td>{{ (time) ?
+            time|slice(0, 4) ~'-'~
+            time|slice(4, 2) ~'-'~
+            time|slice(6, 2) ~' '~
+            time|slice(8, 2) ~':'~
+            time|slice(10, 2) ~':'~
+            time|slice(12, 2) }}</td>
+		      {# 4th col, MEDIA_PAGE #}
+		    	<td style="white-space: normal !important; word-wrap: break-word;">
+            {{ (fileDisplay.page ~ fileDisplay.additionalPageText)|nl2br }}
+            {% if not fileDisplay.pageIsActive %}
+                  <br/>{{ _t('MEDIA_INACTIVE_PAGE')}}
+            {% endif %}
+		      </td>
+		      {# 5th col, MEDIA_PAGE_VERSION #}
+		    	<td>{{ (fileDisplay.pageIsLatest) 
+            ? _t('MEDIA_USED_ON_PAGE_LATEST_VERSION')
+            : _t('MEDIA_UNUSED_ON_PAGE_LATEST_VERSION')}}<br/>
+          </td>
+          {# 6th col, MEDIA_VERSION #}
+		    	<td>{% if fileDisplay.latestMediaVersion %}{{ _t('MEDIA_LATEST_VERSION') }}<br />{% endif %}
+		      </td>
+		      {# 7th col, delete button #}
+		    	<td>
+            {% if not fileDisplay.pageIsActive or not fileDisplay.pageIsLatest or not fileDisplay.MediaIsLatest %}
+              {% block deleteButton %}
+                <form action="{{ url({handler:''}) }}" method="post">
+                  <input type="hidden" name="media_delete" value="{{ file }}" />
+                  <input class="btn btn-sm btn-danger" type="submit" value="{{ _t('MEDIA_DELETE') }}" />
+                </form>
+              {% endblock %}
+            {% endif %}
+		      </td>
+        {% endif %}
+	    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{# End of files table display #}
