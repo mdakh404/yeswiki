@@ -1,4 +1,5 @@
 <?php
+
 /*vim: set expandtab tabstop=4 shiftwidth=4: */
 // +------------------------------------------------------------------------------------------------------+
 // | PHP version 5                                                                                        |
@@ -466,4 +467,18 @@ $GLOBALS['translations'] = array_merge($GLOBALS['translations']??[], array(
 'EDIT_CONFIG_GROUP_CORE' => 'Paramètres Principaux',
 'EDIT_CONFIG_GROUP_ACCESS' => "Droit d'accès",
 'EDIT_CONFIG_GROUP_EMAIL' => 'Emails',
+
+// reactions
+'REACTION_EMPTY_ID' => 'le paramètre "id" doit obligatoirement être renseigné',
+'REACTION_LIKE' => 'J\'approuve',
+'REACTION_DISLIKE' => 'Je n\'approuve pas',
+'REACTION_ANGRY' => 'Faché·e',
+'REACTION_SURPRISED' => 'Surpris·e',
+'REACTION_THINKING' => 'Dubitatif·ve',
+'REACTION_LOGIN_TO_REACT' => 'Pour réagir, identifiez-vous!',
+'REACTION_SHARE_YOUR_REACTION' => 'Partagez votre réaction à propos de ce contenu',
+'REACTION_TO_ALLOW_REACTION' => 'Pour vous permettre de réagir',
+'REACTION_PLEASE_LOGIN' => 'veuillez vous identifier',
+'REACTION_NB_REACTIONS_LEFT' => 'choix possible(s)',
+
 ));
