@@ -45,7 +45,13 @@ var fields = [
       '<svg height="512pt" viewBox="0 -90 512 512" width="512pt" xmlns="http://www.w3.org/2000/svg"><path d="m452 0h-392c-33.085938 0-60 26.914062-60 60v212c0 33.085938 26.914062 60 60 60h392c33.085938 0 60-26.914062 60-60v-212c0-33.085938-26.914062-60-60-60zm20 272c0 11.027344-8.972656 20-20 20h-392c-11.027344 0-20-8.972656-20-20v-212c0-11.027344 8.972656-20 20-20h392c11.027344 0 20 8.972656 20 20zm-295-151v131h-40v-131h-57v-40h152v40zm40 91h40v40h-40zm80 0h40v40h-40zm80 0h40v40h-40zm0 0"/></svg>',
   },
   {
-    label: "Géolocalisation sur une carte",
+    label: "Url",
+    name: "url",
+    attrs: { type: "url" },
+    icon: '<i class="fas fa-link"></i>',
+  },
+  {
+    label: "Géolocalisation de l'adresse",
     name: "map",
     attrs: { type: "map" },
     icon: '<i class="fas fa-map-marked-alt"></i>',
@@ -226,6 +232,11 @@ var typeUserAttrs = {
       placeholder: "Mode avancé. Ex: [0-9]+ ou [A-Za-z]{3}, ...",
     }
   },
+  url: {
+    read: readConf,
+    write: writeconf,
+    semantic: semanticConf
+  },
   champs_mail: {
     hint: { label: "Texte d'aide" },
     separator: { label: "" }, // separate important attrs from others
@@ -258,7 +269,6 @@ var typeUserAttrs = {
   },
   image: {
     hint: { label: "Texte d'aide" },
-    name2: { label: "Name", value: "bf_image" },
     thumb_height: { label: "Hauteur Vignette", value: "140" },
     thumb_width: { label: "Largeur Vignette", value: "140" },
     resize_height: { label: "Hauteur redimension", value: "600" },
@@ -418,7 +428,7 @@ var templates = {
   },
   map: function (fieldDate) {
     return {
-      field: "Geolocation à partir d'un champ bf_adresse1 (ou bf_adresse2) et/ou bf_ville et/ou bf_pays",
+      field: "Geolocation à partir d'un champ bf_adresse et/ou bf_ville et/ou bf_code_postal et/ou bf_pays",
     };
   },
   image: function (fieldDate) {
@@ -433,6 +443,9 @@ var templates = {
     else 
       string += ` value="${fieldData.value}"/>`;
     return { field: string };
+  },
+  url: function (fieldData) {
+    return { field: `<input type="url" placeholder="${fieldData.value || ''}"/>` }
   },
   tags: function (field) {
     return { field: "<input/>" };
@@ -497,6 +510,7 @@ var lists = {
 };
 var yesWikiMapping = {
   text: defaultMapping,
+  url: defaultMapping,
   number: defaultMapping,
   champs_mail: {
     ...defaultMapping,
@@ -513,7 +527,7 @@ var yesWikiMapping = {
   image: {
     ...defaultMapping,
     ...{
-      1: "name2",
+      1: "name",
       3: "thumb_height",
       4: "thumb_width",
       5: "resize_height",
@@ -572,7 +586,8 @@ var yesWikiMapping = {
 };
 // Mapping betwwen yeswiki field type and standard field implemented by form builder
 var yesWikiTypes = {
-  lien_internet: { type: "text", subtype: "url" },
+  lien_internet: { type: "url" },
+  lien_internet_bis: { type: "text", subtype: "url" },
   mot_de_passe: { type: "text", subtype: "password" },
   // "nombre": { type: "text", subtype: "tel" },
   texte: { type: "text" }, // all other type text subtype (range, text, tel)
@@ -593,6 +608,11 @@ var yesWikiTypes = {
   listefiches: { type: "listefichesliees" },
 };
 
+var defaultFieldsName = {
+  textarea: "bf_description",
+  image: "bf_image",
+}
+
 function initializeFormbuilder(formAndListIds) {
   // FormBuilder conf
   formBuilder = $formBuilderContainer.formBuilder({
@@ -609,7 +629,7 @@ function initializeFormbuilder(formAndListIds) {
       "header",
       "collaborative_doc",
     ],
-    controlOrder: ["text", "textarea", "jour", "image", "file", "champs_mail", "tags"],
+    controlOrder: ["text", "textarea", "jour", "image", "url", "file", "champs_mail", "tags"],
     disabledAttrs: [
       "access",
       "placeholder",
@@ -625,17 +645,23 @@ function initializeFormbuilder(formAndListIds) {
 
   // Each 300ms update the text field converting form bulder content into wiki syntax
   var formBuilderInitialized = false;
+  var existingFieldsNames = [], existingFieldsIds = []
+  
   setInterval(function () {
     if (!formBuilder || !formBuilder.actions || !formBuilder.actions.setData)
       return;
     if (!formBuilderInitialized) {
       initializeBuilderFromTextInput();
+      existingFieldsIds = getFieldsIds()
       formBuilderInitialized = true;
     }
     if ($formBuilderTextInput.is(":focus")) return;
     // Change names
-    $(".form-group.name-wrap label, .form-group.name2-wrap label").text("Identifiant unique");
+    $(".form-group.name-wrap label").text("Identifiant unique");
     $(".form-group.label-wrap label").text("Intitulé");
+    existingFieldsNames = []
+    $(".fld-name").each(function() { existingFieldsNames.push($(this).val()) })
+    
     
     // Slugiy field names
     $(".fld-name").each(function () {
@@ -677,17 +703,44 @@ function initializeFormbuilder(formAndListIds) {
       })
       .trigger("change");
 
-    // For checkbox, select etc... the name should be blank by default
-    // so we replace the generated value by blank
-    $(".radio-group-field .fld-name").each(function () {
-      if ($(this).val().includes("radio_group_")) $(this).val("");
-    });
-    $(".checkbox-group-field .fld-name").each(function () {
-      if ($(this).val().includes("checkbox_group_")) $(this).val("");
-    });
-    $(".select-field .fld-name").each(function () {
-      if ($(this).val().includes("select_")) $(this).val("");
-    });
+    
+    $(".fld-name").each(function() { 
+      var name = $(this).val()
+      var id = $(this).closest('.form-field').attr('id')
+
+      // Detect new fields added
+      if (!existingFieldsIds.includes(id)) {
+        var fieldType = $(this).closest('.form-field').attr('type');
+
+        // Make the default names easier to read
+        if (['radio_group', 'checkbox_group', 'select'].includes(fieldType)) {
+          name = ''
+        } else if (!name.includes('bf_')) {
+          name = defaultFieldsName[fieldType] || 'bf_' + fieldType
+          if (existingFieldsNames.includes(name)) {
+            // If name already exist, we add a number (bf_address, bf_address1, bf_address2...)
+            number = 1
+            while(existingFieldsNames.includes(name + number)) number += 1
+            name += number
+          }
+        }
+
+        // if it's a map, we automatically add a bf_addresse
+        if (fieldType == 'map' && !existingFieldsNames.includes('bf_adresse')) {
+          var field = {
+            type: 'text',
+            subtype: 'text',
+            name: 'bf_adresse',
+            label: 'Adresse'
+          };
+          var index = $(this).closest('.form-field').index()
+          formBuilder.actions.addField(field, index);
+        }
+      }
+      $(this).val(name)
+    })
+
+    existingFieldsIds = getFieldsIds()
 
     $(".text-field select[name=subtype]:not(.initialized)")
       .change(function () {
@@ -729,6 +782,11 @@ function initializeFormbuilder(formAndListIds) {
   $("#formbuilder-link").click(initializeBuilderFromTextInput);
 }
 
+function getFieldsIds() {
+  result = []
+  $(".fld-name").each(function() { result.push($(this).closest('.form-field').attr('id')) })
+  return result
+}
 // Remove accidental br at the end of the labels
 function removeBR(text) {
   var newValue = text.replace(/(<div><br><\/div>)+$/g, '')
@@ -768,6 +826,9 @@ function formatJsonDataIntoWikiText(formData) {
       }
     // for non mapped fields, we just keep the form type
     if (!wikiProps[0]) wikiProps[0] = formElement.type;
+    
+    // fix for url field which can be build with textField or urlField
+    if (wikiProps[0]) wikiProps[0] = wikiProps[0].replace('_bis', '') 
 
     for (var key in mapping) {
       var property = mapping[key];

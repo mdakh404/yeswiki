@@ -700,3 +700,13 @@ body {
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
   text-decoration: none;
 }
+
+.update-hint {
+  font-size: .9rem;
+  margin-bottom: 5px;
+  margin-top: 5px;
+  opacity: .9;
+  font-style: italic;
+  line-height: 1rem;
+  text-align: justify;
+}
