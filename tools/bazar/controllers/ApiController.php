@@ -16,24 +16,23 @@ use YesWiki\Core\YesWikiController;
 class ApiController extends YesWikiController
 {
     /**
-     * @Route("/api/forms")
+     * @Route("/api/forms", methods={"GET"},options={"acl":{"public"}})
+     * @Route("/api/forms/", methods={"GET"},options={"acl":{"public"}})
      */
     public function getAllForms()
     {
-        $this->denyAccessUnlessAdmin();
         $forms = $this->getService(FormManager::class)->getAll();
         return new ApiResponse(empty($forms) ? null : $forms);
     }
 
     /**
-     * @Route("/api/forms/{formId}")
+     * @Route("/api/forms/{formId}", methods={"GET"},options={"acl":{"public"}})
+     * @Route("/api/forms/{formId}/", methods={"GET"},options={"acl":{"public"}})
      */
     public function getForm($formId)
     {
-        $this->denyAccessUnlessAdmin();
-
         $form = $this->getService(FormManager::class)->getOne($formId);
-        if (!$form) {
+        if (!$form || !isset($form['bn_id_nature'])) {
             throw new NotFoundHttpException();
         }
 
@@ -269,8 +268,8 @@ class ApiController extends YesWikiController
 
         $output .= '
         <p>
-        <b><code>GET ' . $this->wiki->href('', 'api/entries/{formId}/html') . '</code></b><br />
-        Obtenir la liste de toutes les fiches du formulaire <code>formId</code> au format json, avec la représentation html de la fiche dans le champ <code>html_output</code><br />
+        <b><code>GET ' . $this->wiki->href('', 'api/entries/html') . '</code></b><br />
+        Obtenir la liste de toutes les fiches au format json, avec la représentation html de la fiche dans le champ <code>html_output</code><br />
         </p>';
 
         $output .= '
@@ -281,20 +280,20 @@ class ApiController extends YesWikiController
 
         $output .= '
         <p>
-        <b><code>GET ' . $this->wiki->href('', 'api/entries/{formId}/geojson') . '</code></b><br />
-        Obtenir la liste de toutes les fiches du formulaire <code>formId</code> au format geojson<br />
+        <b><code>GET ' . $this->wiki->href('', 'api/entries/geojson') . '</code></b><br />
+        Obtenir la liste de toutes les fiches au format geojson<br />
         </p>';
 
         $output .= '
         <p>
-        <b><code>GET ' . $this->wiki->href('', 'api/entries/{formId}/ical') . '</code></b><br />
-        Obtenir la liste de toutes les fiches du formulaire <code>formId</code> au format ical<br />
+        <b><code>GET ' . $this->wiki->href('', 'api/entries/ical') . '</code></b><br />
+        Obtenir la liste de toutes les fiches au format ical<br />
         </p>';
 
         $output .= '
         <p>
-        <b><code>GET ' . $this->wiki->href('', 'api/entries/{formId}&fields=bf_titre') . '</code></b><br />
-        Obtenir la liste de toutes les fiches du formulaire <code>formId</code> en ne gardant que les titres (il est possible de spécifier d\'autres champs en séparant leur nom par des \',\' ex: <code>&field=bf_titre,url</code>)<br />
+        <b><code>GET ' . $this->wiki->href('', 'api/entries/{output}&fields=bf_titre') . '</code></b><br />
+        Obtenir la liste de toutes les fiches au format spécifié en ne gardant que les titres (il est possible de spécifier d\'autres champs en séparant leur nom par des \',\' ex: <code>&field=bf_titre,url</code>)<br />
         </p>';
 
         $output .= '

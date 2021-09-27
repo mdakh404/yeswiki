@@ -136,12 +136,6 @@ $(document).ready(function () {
   $('object').append('<param value="opaque" name="wmode">');
   $('embed').attr('wmode', 'opaque');
 
-  /* swap open/close side menu icons */
-  $('.yeswiki-list-category[data-toggle=collapse]').click(function () {
-    // toggle icon
-    $(this).find('i').toggleClass('glyphicon-chevron-right glyphicon-chevron-down');
-  });
-
   //============validation formulaire============================
   //============gestion des dates================================
 
@@ -163,7 +157,7 @@ $(document).ready(function () {
     // il y a des champs requis, on teste la validite champs par champs
     if (inputsreq.length > 0) {
       inputsreq.each(function () {
-        if (!($(this).val().length === 0 || $(this).val() === '' || $(this).val() === '0')) {
+        if (!($(this).val().length === 0 || $(this).val() === '' || ($(this).attr('type') == 'range' && $(this).val() === $(this).data('default')))) {
           $(this).removeClass('invalid');
         } else {
           atleastonefieldnotvalid = true;
@@ -285,8 +279,14 @@ $(document).ready(function () {
       $('html, body').animate({
         scrollTop: $('#formulaire .bootstrap-tagsinput.invalid').offset().top - 80,
       }, 500);
-    }
+    } else if ($('#formulaire .geocode-input.required').length > 0 && !$('#formulaire .geocode-input #bf_latitude').val()) {
+      alert("Vous devez géolocaliser l'adresse");
 
+      //on remonte en haut du formulaire
+      $('html, body').animate({
+        scrollTop: $('#formulaire .geocode-input').offset().top - 80,
+      }, 500);
+    }
     // formulaire validé, on soumet le formulaire
     else {
       return true;

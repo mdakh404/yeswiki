@@ -4,6 +4,7 @@ namespace YesWiki\Bazar\Controller;
 
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use YesWiki\Bazar\Field\BazarField;
+use YesWiki\Bazar\Field\ImageField;
 use YesWiki\Bazar\Service\EntryManager;
 use YesWiki\Bazar\Service\FormManager;
 use YesWiki\Bazar\Service\SemanticTransformer;
@@ -110,17 +111,12 @@ class EntryController extends YesWikiController
         // fake ->tag for the attached images
         $this->wiki->tag = $oldPageTag;
 
-        $showOwner = false;
+        // Format owner
         $owner = $this->wiki->GetPageOwner($entryId);
-
-        // If owner is not an IP address
-        if ($owner != '' && $owner != 'WikiAdmin' && preg_replace('/([0-9]|\.)/', '', $owner) != '') {
-            $showOwner = true;
-            // Make the user name clickable when the parameter 'bazar_user_entry_id' is defined in the config file and a corresponding bazar entry exists
-            // TODO Once the integration of login-sso is done, replace $this->pageManager->getOne with the proper fonction
-            if (!empty($this->config['sso_config']) && isset($this->config['sso_config']['bazar_user_entry_id']) && $this->pageManager->getOne($owner)) {
-                $owner = $this->wiki->Format('[[' . $this->wiki->GetPageOwner($entryId) . ' ' . $this->wiki->GetPageOwner($entryId) . ']]');
-            }
+        $isOwnerIpAddress = preg_replace('/([0-9]|\.)/', '', $owner) == '';
+        if ($isOwnerIpAddress || !$owner) $owner = "Utilisateur Inconu";
+        if (!empty($this->config['sso_config']) && isset($this->config['sso_config']['bazar_user_entry_id']) && $this->pageManager->getOne($owner)) {
+            $owner = $this->wiki->Format('[[' . $this->wiki->GetPageOwner($entryId) . ' ' . $this->wiki->GetPageOwner($entryId) . ']]');
         }
 
         return $this->render('@bazar/entries/view.twig', [
@@ -129,8 +125,8 @@ class EntryController extends YesWikiController
             "entryId" => $entryId,
             "owner" => $owner,
             "message" => $_GET['message'] ?? '',
-            "showOwner" => $showOwner,
             "showFooter" => $showFooter,
+            "canShow" => $this->wiki->GetPageTag() != $entry['id_fiche'], // hide if we are already in the show page
             "canEdit" =>  !$this->securityController->isWikiHibernated() && $this->aclService->hasAccess('write', $entryId),
             "canDelete" => !$this->securityController->isWikiHibernated() && ($this->wiki->UserIsAdmin() or $this->wiki->UserIsOwner()),
             "isAdmin" => $this->wiki->UserIsAdmin(),
@@ -241,7 +237,7 @@ class EntryController extends YesWikiController
             "@bazar/fiche-{$entry['id_typeannonce']}.twig"
         ];
         foreach ($templatePaths as $templatePath) {
-            if ($this->wiki->services->get(TemplateEngine::class)->hasTemplate($templatePath)) {
+            if ($this->getService(TemplateEngine::class)->hasTemplate($templatePath)) {
                 return $templatePath;
             }
         }
@@ -280,7 +276,7 @@ class EntryController extends YesWikiController
 
             if (isset($type)) {
                 $templatePath = $dir_name . "/" . strtolower($type) . ".tpl.html";
-                return $this->wiki->services->get(TemplateEngine::class)->hasTemplate($templatePath) ? $templatePath : null;
+                return $this->getService(TemplateEngine::class)->hasTemplate($templatePath) ? $templatePath : null;
             }
         }
 
@@ -306,7 +302,7 @@ class EntryController extends YesWikiController
                 }
             }
         }
-        
+
         if ($form['bn_sem_type']) {
             $html['id_fiche'] = $entry['id_fiche'];
             $html['semantic'] = $GLOBALS['wiki']->services->get(SemanticTransformer::class)->convertToSemanticData($form, $html, true);
@@ -406,7 +402,7 @@ class EntryController extends YesWikiController
             $nbYears = $matches[3][0];
             $nbMonth = $matches[5][0];
             $nbDays = $matches[7][0];
-            
+
             $dateMidnigth = $this->extractDate($sign, $nbYears, $nbMonth, $nbDays);
             $dateMidnigth->setTime(0, 0);
             $entries = array_filter($entries, function ($entry) use ($dateMidnigth) {
@@ -417,7 +413,7 @@ class EntryController extends YesWikiController
             $nbYears = $matches[3][0];
             $nbMonth = $matches[5][0];
             $nbDays = $matches[7][0];
-            
+
             $date = $this->extractDate($sign, $nbYears, $nbMonth, $nbDays) ;
             $entries = array_filter($entries, function ($entry) use ($date) {
                 return $this->filterEntriesOnDateTraversing($entry, ">", $date) ;
@@ -427,7 +423,7 @@ class EntryController extends YesWikiController
             $nbYears = $matches[3][0];
             $nbMonth = $matches[5][0];
             $nbDays = $matches[7][0];
-            
+
             $date = $this->extractDate($sign, $nbYears, $nbMonth, $nbDays) ;
             $entries = array_filter($entries, function ($entry) use ($date) {
                 return $this->filterEntriesOnDateTraversing($entry, "<", $date) ;
@@ -456,7 +452,7 @@ class EntryController extends YesWikiController
 
         return $entries ;
     }
-    
+
     private function extractDate(string $sign, string $nbYears, string $nbMonth, string $nbDays): \DateTime
     {
         $dateInterval = new \DateInterval(
@@ -466,7 +462,7 @@ class EntryController extends YesWikiController
                 .(!empty($nbDays) ? $nbDays . 'D' : '')
         );
         $dateInterval->invert = ($sign == "-") ? 1 : 0;
-        
+
         $date = new \DateTime() ;
         $date->add($dateInterval) ;
 

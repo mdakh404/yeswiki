@@ -24,7 +24,6 @@ class MapField extends BazarField
         $this->latitudeField = $values[self::FIELD_LATITUDE_FIELD] ?? 'bf_latitude';
         $this->longitudeField = $values[self::FIELD_LONGITUDE_FIELD] ?? 'bf_longitude';
         $this->autocomplete = $values[self::FIELD_AUTOCOMPLETE];
-
         $this->propertyName = 'geolocation';
         $this->label = $this->propertyName;
     }
@@ -163,9 +162,6 @@ class MapField extends BazarField
             });
             var fields = ["#bf_adresse", "#bf_adresse1", "#bf_adresse2", "#bf_ville", "#bf_code_postal", "#bf_pays"]
             fields = fields.map((id) => $(id)).filter((field) => field.length > 0)
-            fields.forEach((field) => {
-                field.on("blur", () => showAddress(map))
-            })
 
             function showAddress(map) {
                 var address = "";
@@ -200,7 +196,7 @@ class MapField extends BazarField
                         <span class="input-group-addon">Lon</span>
                         <input type="text" class="form-control bf_longitude" pattern="-?\\\d{1,3}\\\.\\\d+" value="${point.lng}" />
                     </div>
-                    <div class="text-justify">Déplacer le point si besoin ou modifier les coordonnées GPS.</div>
+                    <div class="text-center">'._t('BAZ_ADJUST_MARKER_POSITION').'</div>
                 `
             }
         
@@ -208,8 +204,13 @@ class MapField extends BazarField
             {
                 if (geocodedmarker) map.removeLayer(geocodedmarker);
                 geocodedmarker = L.marker(point, {draggable:true}).addTo(map);
-                geocodedmarker.bindPopup(popupHtml( geocodedmarker.getLatLng() ), {closeButton: false, closeOnClick: false}).openPopup();
-                map.panTo( geocodedmarker.getLatLng(), {animate:true});
+                geocodedmarker.bindPopup(popupHtml( geocodedmarker.getLatLng() ), {
+                    closeButton: false, 
+                    closeOnClick: false,
+                    minWidth: 300
+                }).openPopup();
+                map.setView(point, 18);
+                // map.panTo( geocodedmarker.getLatLng(), {animate:true});
                 $(\'#bf_latitude\').val(point.lat);
                 $(\'#bf_longitude\').val(point.lng);
         

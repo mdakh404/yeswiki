@@ -12,6 +12,7 @@ class EditConfigAction extends YesWikiAction
         'root_page' => 'core',
         'default_language' => 'core',
         'debug' => 'core',
+        'timezone' => 'core',
 
         'default_read_acl' => 'access',
         'default_write_acl' => 'access',
@@ -68,7 +69,7 @@ class EditConfigAction extends YesWikiAction
                 $keysList[''] = array_merge($keysList[''] ?? [], [$key => $value]);
             }
         }
-        return $output . $this->render('@templates/edit-config.twig', [
+        return $output . $this->render('@core/edit-config.twig', [
             'SAVE_NAME' => self::SAVE_NAME,
             'keysList' => $keysList,
             'placeholders' => $placeholders,
@@ -154,7 +155,7 @@ class EditConfigAction extends YesWikiAction
                 foreach ($key as $firstLevelKey => $secondLevelKeys) {
                     foreach ($secondLevelKeys as $secondLevelKey) {
                         $new_value = $this->arguments['post'][$firstLevelKey][$secondLevelKey] ??  null;
-                        if (empty($new_value)) {
+                        if (is_null($new_value) || $new_value === '') {
                             if (isset($config->$firstLevelKey[$secondLevelKey])) {
                                 $tmp = $config->$firstLevelKey;
                                 unset($tmp[$secondLevelKey]);
@@ -175,7 +176,7 @@ class EditConfigAction extends YesWikiAction
                 }
             } else {
                 $new_value = $this->arguments['post'][$key] ??  null;
-                if (empty($new_value)) {
+                if (is_null($new_value) || $new_value === '') {
                     unset($config->$key);
                 } else {
                     $config->$key = $this->strtoarray($new_value);
@@ -260,7 +261,7 @@ class EditConfigAction extends YesWikiAction
             }
         } elseif (!is_string($value)) {
             try {
-                $value = strval($value);
+                $value = (($value === false) ? "false" : (($value=== true) ? "true" : strval($value)));
             } catch (\Throwable $th) {
                 $value = '';
             }
@@ -307,6 +308,8 @@ class EditConfigAction extends YesWikiAction
             if (count($result) > 0) {
                 return $result;
             }
+        } else {
+            $value = ($value == 'true') ? true : (($value == 'false') ? false : $value);
         }
         return $value;
     }
@@ -319,13 +322,20 @@ class EditConfigAction extends YesWikiAction
     {
         $help = [];
         foreach ($this->getAuthorizedKeys()[0] as $key) {
-            if (!is_array($key) && isset($GLOBALS['translations']['EDIT_CONFIG_HINT_'.$key])) {
-                $help[$key] = _t('EDIT_CONFIG_HINT_'.$key);
-            } elseif (is_array($key)) {
+            if (!is_array($key)) {
+                if (isset($GLOBALS['translations']['EDIT_CONFIG_HINT_'.$key])) {
+                    $help[$key] = _t('EDIT_CONFIG_HINT_'.$key);
+                } elseif (isset($GLOBALS['translations']['EDIT_CONFIG_HINT_'.strtoupper($key)])) {
+                    $help[$key] = _t('EDIT_CONFIG_HINT_'.strtoupper($key));
+                }
+            } else {
                 foreach ($key as $firstLevelKey => $secondLevelKeys) {
                     foreach ($secondLevelKeys as $secondLevelKey) {
-                        if (isset($GLOBALS['translations']['EDIT_CONFIG_HINT_'.$firstLevelKey.'['.$secondLevelKey.']'])) {
-                            $help[$firstLevelKey.'['.$secondLevelKey.']'] = _t('EDIT_CONFIG_HINT_'.$firstLevelKey.'['.$secondLevelKey.']');
+                        $hintKey = 'EDIT_CONFIG_HINT_'.$firstLevelKey.'['.$secondLevelKey.']';
+                        if (isset($GLOBALS['translations'][$hintKey])) {
+                            $help[$firstLevelKey.'['.$secondLevelKey.']'] = _t($hintKey);
+                        } elseif (isset($GLOBALS['translations'][strtoupper($hintKey)])) {
+                            $help[$firstLevelKey.'['.$secondLevelKey.']'] = _t(strtoupper($hintKey));
                         }
                     }
                 }

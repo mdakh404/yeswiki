@@ -5,6 +5,8 @@ namespace YesWiki\Core\Controller;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use YesWiki\Core\ApiResponse;
+use YesWiki\Core\Service\AclService;
+use YesWiki\Core\Service\DbService;
 use YesWiki\Core\Service\UserManager;
 use YesWiki\Core\Service\ReactionManager;
 use YesWiki\Core\YesWikiController;
@@ -27,6 +29,10 @@ class ApiController extends YesWikiController
         $urlGroup = $this->wiki->Href('', 'api/group');
         $output .= '<h2>'._t('GROUPS').'</h2>'."\n".
             'GET <code><a href="'.$urlGroup.'">'.$urlGroup.'</a></code><br />';
+        
+        $urlPages = $this->wiki->Href('', 'api/pages');
+        $output .= '<h2>'._t('PAGES').'</h2>'."\n".
+            'GET <code><a href="'.$urlPages.'">'.$urlPages.'</a></code><br />';
 
         // TODO use annotations to document the API endpoints
         $extensions = $this->wiki->extensions;
@@ -89,6 +95,7 @@ class ApiController extends YesWikiController
 
         return new ApiResponse($this->wiki->GetGroupsList());
     }
+<<<<<<< HEAD
 
     /**
      * @Route("/api/reactions", methods={"GET"}, options={"acl":{"public"}})
@@ -229,5 +236,29 @@ class ApiController extends YesWikiController
                 Response::HTTP_UNAUTHORIZED
             );
         }
+=======
+    
+    /**
+     * @Route("/api/pages",options={"acl":{"public"}})
+     */
+    public function getAllPages()
+    {
+        $dbService = $this->getService(DbService::class);
+        $aclService = $this->getService(AclService::class);
+        // recuperation des pages wikis
+        $sql = 'SELECT * FROM '.$dbService->prefixTable('pages');
+        $sql .= ' WHERE latest="Y" AND comment_on="" AND tag NOT LIKE "LogDesActionsAdministratives%" ';
+        $sql .= ' AND tag NOT IN (SELECT resource FROM '.$dbService->prefixTable('triples').' WHERE property="http://outils-reseaux.org/_vocabulary/type") ';
+        $sql .= ' ORDER BY tag ASC';
+        $pages = _convert($dbService->loadAll($sql), 'ISO-8859-15');
+        $pages = array_filter($pages, function ($page) use ($aclService) {
+            return $aclService->hasAccess('read', $page["tag"]);
+        });
+        $pagesWithTag = [];
+        foreach ($pages as $page) {
+            $pagesWithTag[$page['tag']] = $page;
+        }
+        return new ApiResponse(empty($pagesWithTag) ? null : $pagesWithTag);
+>>>>>>> origin/doryphore
     }
 }

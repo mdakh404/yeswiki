@@ -14,10 +14,12 @@ class TemplateEngine
     protected $wiki;
     protected $twigLoader;
     protected $twig;
+    protected $assetsManager;
 
-    public function __construct(Wiki $wiki, ParameterBagInterface $config)
+    public function __construct(Wiki $wiki, ParameterBagInterface $config, AssetsManager $assetsManager)
     {
         $this->wiki = $wiki;
+        $this->assetsManager = $assetsManager;
         // Default path (main namespace) is the root of the project. There are no templates
         // there, but it's needed to call relative path like render('tools/bazar/templates/...')
         $this->twigLoader = new \Twig\Loader\FilesystemLoader('./');
@@ -57,6 +59,20 @@ class TemplateEngine
                 }
             }
         }
+        
+        // Core templates
+        $corePaths = [];
+        $corePaths[] = 'custom/templates/core/';
+        // Ability to override an extension template from another extensioncore
+        foreach ($this->wiki->extensions as $otherExtensionName => $pluginInfo) {
+            $corePaths[] = "tools/$otherExtensionName/templates/core/";
+        }
+        $corePaths[] = 'templates/';
+        foreach ($corePaths as $path) {
+            if (file_exists($path)) {
+                $this->twigLoader->addPath($path, 'core');
+            }
+        }
 
         // Set up twig
         $this->twig = new \Twig\Environment($this->twigLoader, [
@@ -77,10 +93,10 @@ class TemplateEngine
             return $this->wiki->Format($text, $formatter);
         });
         $this->addTwigHelper('include_javascript', function ($file, $first = false, $module = false) {
-            $this->wiki->AddJavascriptFile($file, $first, $module);
+            $this->assetsManager->AddJavascriptFile($file, $first, $module);
         });
         $this->addTwigHelper('include_css', function ($file) {
-            $this->wiki->AddCSSFile($file);
+            $this->assetsManager->AddCSSFile($file);
         });
     }
 

@@ -250,41 +250,64 @@ class EntryManager
         }
 
         foreach ($params['queries'] as $nom => $val) {
-            if (!empty($nom) && !empty($val)) {
-                $valcrit = explode(',', $val);
-                if (is_array($valcrit) && count($valcrit) > 1) {
-                    $requeteSQL .= ' AND (';
-                    $first = true;
-                    foreach ($valcrit as $critere) {
-                        $rawCriteron = $this->convertToRawJSONStringForREGEXP($critere);
-                        if (!$first) {
-                            $requeteSQL .= ' ' . $params['searchOperator'] . ' ';
+            if (!empty($nom)) {
+                if (!empty($val)) {
+                    $valcrit = explode(',', $val);
+                    if (is_array($valcrit) && count($valcrit) > 1) {
+                        $requeteSQL .= ' AND ';
+                        if (substr($nom, -1) == '!') {
+                            $requeteSQL .= ' NOT ';
+                            $nom = substr($nom, 0, -1);
                         }
+                        $requeteSQL .= '(';
+                        $first = true;
+                        foreach ($valcrit as $critere) {
+                            $rawCriteron = $this->convertToRawJSONStringForREGEXP($critere);
+                            if (!$first) {
+                                $requeteSQL .= ' ' . $params['searchOperator'] . ' ';
+                            }
 
-                        if (strcmp(substr($nom, 0, 5), 'liste') == 0) {
-                            $requeteSQL .=
-                                'body REGEXP \'"' . $nom . '":"' . $rawCriteron . '"\'';
-                        } else {
-                            $requeteSQL .=
-                                'body REGEXP \'"' . $nom . '":("' . $rawCriteron .
-                                '"|"[^"]*,' . $rawCriteron . '"|"' . $rawCriteron . ',[^"]*"|"[^"]*,'
-                                . $rawCriteron . ',[^"]*")\'';
+                            if (strcmp(substr($nom, 0, 5), 'liste') == 0) {
+                                $requeteSQL .=
+                                    'body REGEXP \'"' . $nom . '":"' . $rawCriteron . '"\'';
+                            } else {
+                                $requeteSQL .=
+                                    'body REGEXP \'"' . $nom . '":("' . $rawCriteron .
+                                    '"|"[^"]*,' . $rawCriteron . '"|"' . $rawCriteron . ',[^"]*"|"[^"]*,'
+                                    . $rawCriteron . ',[^"]*")\'';
+                            }
+
+                            $first = false;
                         }
-
-                        $first = false;
-                    }
-                    $requeteSQL .= ')';
-                } else {
-                    $rawCriteron = $this->convertToRawJSONStringForREGEXP($val);
-                    if (strcmp(substr($nom, 0, 5), 'liste') == 0) {
-                        $requeteSQL .=
-                            ' AND (body REGEXP \'"' . $nom . '":"' . $rawCriteron . '"\')';
+                        $requeteSQL .= ')';
                     } else {
-                        $requeteSQL .=
-                            ' AND (body REGEXP \'"' . $nom . '":("' . $rawCriteron .
-                            '"|"[^"]*,' . $rawCriteron . '"|"' . $rawCriteron . ',[^"]*"|"[^"]*,'
-                            . $rawCriteron . ',[^"]*")\')';
+                        $rawCriteron = $this->convertToRawJSONStringForREGEXP($val);
+                        if (strcmp(substr($nom, 0, 5), 'liste') == 0) {
+                            $requeteSQL .= ' AND ';
+                            if (substr($nom, -1) == '!') {
+                                $requeteSQL .= ' NOT ';
+                                $nom = substr($nom, 0, -1);
+                            }
+                            $requeteSQL .='(body REGEXP \'"' . $nom . '":"' . $rawCriteron . '"\')';
+                        } else {
+                            $requeteSQL .=' AND ';
+                            if (substr($nom, -1) == '!') {
+                                $requeteSQL .= ' NOT ';
+                                $nom = substr($nom, 0, -1);
+                            }
+                            $requeteSQL .= '(body REGEXP \'"' . $nom . '":("' . $rawCriteron .
+                                '"|"[^"]*,' . $rawCriteron . '"|"' . $rawCriteron . ',[^"]*"|"[^"]*,'
+                                . $rawCriteron . ',[^"]*")\')';
+                        }
                     }
+                } else {
+                    $requeteSQL .= ' AND ';
+                    if (substr($nom, -1) == '!') {
+                        $requeteSQL .= ' NOT ';
+                        $nom = substr($nom, 0, -1);
+                    }
+                    $requeteSQL .='(body REGEXP \'"' . $nom . '":""\' '.
+                        'OR NOT (body REGEXP \'"' . $nom . '":"[^"][^"]*"\'))';
                 }
             }
         }
@@ -907,6 +930,10 @@ class EntryManager
         // needed ACL
         if (count($neededACL) > 0) {
             $newRequestStart .= ' AND (';
+            if (!empty($user)) {
+                $newRequestStart .= '(';
+                $newRequestEnd = ')'.$newRequestEnd;
+            }
 
             $addOr = false;
             foreach ($neededACL as $acl) {
@@ -921,12 +948,22 @@ class EntryManager
             // not authorized ACL
             foreach ($neededACL as $acl) {
                 $newRequestStart .= ' AND ';
-                $newRequestStart .= ' list NOT LIKE "!%'.$acl.'%"';
+                $newRequestStart .= ' list NOT LIKE "%!'.$acl.'%"';
+            }
+            
+            // add detection of '%'
+            if (!empty($user)) {
+                $newRequestStart .= ') OR (';
+                
+                $newRequestStart .= '(list LIKE "%\\%%" AND list NOT LIKE "%!\\%%")';
+                $newRequestStart .= ' AND owner = _utf8\'' . mysqli_real_escape_string($this->wiki->dblink, $userName) . '\'';
             }
         }
 
+        $request = $newRequestStart.$newRequestEnd;
+
         // return request to append
-        return $newRequestStart.$newRequestEnd;
+        return $request;
     }
 
     /**

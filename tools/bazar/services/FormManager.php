@@ -82,7 +82,7 @@ class FormManager
         $results = [];
 
         foreach ($formsIds as $formId) {
-            if (!$this->cachedForms[$formId]) {
+            if (empty($this->cachedForms[$formId])) {
                 $this->cachedForms[$formId] = $this->getOne($formId);
             }
             $results[$formId] = $this->cachedForms[$formId];
@@ -148,7 +148,7 @@ class FormManager
         if ($this->securityController->isWikiHibernated()) {
             throw new \Exception(_t('WIKI_IN_HIBERNATION'));
         }
-        
+
         // tests of if $formId is int
         if (strval(intval($id)) != strval($id)) {
             return null ;
@@ -304,7 +304,7 @@ class FormManager
                             } else {
                                 $facetteValue[$fieldPropName]['type'] = 'liste';
                             }
-                            
+
                             $facetteValue[$fieldPropName]['source'] = $key;
 
                             $tabval = explode(',', $value);

@@ -8,6 +8,13 @@ use YesWiki\Core\YesWikiHandler;
 
 class UpdateHandler extends YesWikiHandler
 {
+    public function formatArguments($args)
+    {
+        return [
+            'updateAlreadyForced' => $this->formatBoolean($_GET, false, 'updateAlreadyForced'),
+        ];
+    }
+
     public function run()
     {
         if ($this->getService(SecurityController::class)->isWikiHibernated()) {
@@ -73,6 +80,26 @@ class UpdateHandler extends YesWikiHandler
 
             // propose to update content of admin's pages
             $output .= $this->frontUpdateAdminPages();
+
+            // test if templates directory is up to date
+            if (!file_exists('templates/edit-config.twig')) {
+                // redirect to force once update
+                if (($this->wiki->tag == "GererMisesAJour") && !$this->arguments['updateAlreadyForced'] && !is_dir('.git')) {
+                    // check if folder .git exists to prevent autoupate in dev environement
+                    $this->wiki->redirect($this->wiki->Href(
+                        null,
+                        null,
+                        [
+                            'upgrade' => 'yeswiki',
+                            'updateAlreadyForced' => 1
+                        ],
+                        false
+                    ));
+                    exit();
+                } else {
+                    $output .= '<div class="alert alert-warning">ℹ️ '._t('UPDATE_TEMPLATES_FOLDER_NOT_UP_TO_DATE').'</div>';
+                }
+            }
         } else {
             $output .= '<div class="alert alert-danger">'._t('ACLS_RESERVED_FOR_ADMINS').'</div>';
         }
@@ -106,9 +133,9 @@ class UpdateHandler extends YesWikiHandler
         if ($_GET['updateAdminPages'] ?? false) {
             list($updatePagesState, $message) = $this->updateAdminPages($adminPagesToUpdate);
             if ($updatePagesState) {
-                $output .= '✅ Done !<br />';
+                $output .= '✅ Done ! <span class="label label-info">! '._t('UPDATE_ADMIN_PAGES_TIP').'</span><br />';
             } else {
-                $output .= '<span class="label label-warning">! '.str_replace('{{listpage}}', $adminPagesList, _t('UPDATE_ADMIN_PAGES_ERROR')).'</span>'.$message.'<br />';
+                $output .= '<span class="label label-warning">! '._t('UPDATE_ADMIN_PAGES_ERROR').'</span>'.'<br />'.$message;
             }
         } else {
             $output .= '<a href="'.$this->wiki->Href('update', '', ['updateAdminPages'=>true]).'" '.
@@ -132,28 +159,50 @@ class UpdateHandler extends YesWikiHandler
     private function updateAdminPages(array $adminPagesToUpdate): array
     {
         $defaultSQL = file_get_contents('setup/sql/default-content.sql');
-        $defaultSQLSplitted = explode("VALUES\n('", $defaultSQL);
-        if (count($defaultSQLSplitted) < 2) {
-            $defaultSQLSplitted = explode("VALUES\r\n('", $defaultSQL);
-            $defaultSQLSplitted = explode("),\r\n('", $defaultSQLSplitted[1]);
-        } else {
-            $defaultSQLSplitted = explode("),\n('", $defaultSQL);
-        }
-        $output = '';
-        foreach ($adminPagesToUpdate as $page) {
-            foreach ($defaultSQLSplitted as $extract) {
-                if (strpos($extract, $page) === 0) {
-                    if (preg_match('/'.$page.'\',\s*(?:now\(\))?\s*,\s*\'([\S\s]*)\',\s*\'\'\s*,\s*\'{{WikiName}}\',\s*\'{{WikiName}}\', \'(?:Y|N)\', \'page\', \'\'/U', $defaultSQL, $matches)) {
-                        $pageContent = str_replace('\\"', '"', $matches[1]);
-                        $pageContent = str_replace('\\\'', '\'', $pageContent);
-                        if ($this->getService(PageManager::class)->save($page, $pageContent) !== 0) {
-                            $output .= (!empty($output) ? ', ':'').$page;
-                        }
-                    }
+        $defaultSQLSplittedByBlock  = explode("INSERT INTO", $defaultSQL);
+        $blocks = [];
+        for ($i=1; $i < count($defaultSQLSplittedByBlock); $i++) {
+            $block = $defaultSQLSplittedByBlock[$i];
+            if (substr($block, 0, 1) !== '#' &&
+                    substr($defaultSQLSplittedByBlock[$i-1], 0, strlen('# YesWiki pages')) === '# YesWiki pages') { // only working for pages
+                $typeBlock = explode('`', substr($block, strlen(' `{{prefix}}')), 2);
+                if ($typeBlock[0] == 'pages') {
+                    $blocks[] = $typeBlock[1];
                 }
             }
         }
-        $output = !empty($output) ? _t('NO_RIGHT_TO_WRITE_IN_THIS_PAGE').' : '.$output.' <br/>' : '';
+
+        $defaultSQLSplitted = [];
+        foreach ($blocks as $block) {
+            $splittedBlock = explode("VALUES\n('", $block, 2);
+            if (count($splittedBlock) < 2) {
+                $splittedBlock = explode("VALUES\r\n('", $block, 2);
+                $separator = "\r\n";
+            } else {
+                $separator = "\n";
+            }
+            $splittedBlock = explode("),".$separator."('", $splittedBlock[1]);
+            foreach ($splittedBlock as $extract) {
+                $tag = explode('\'', $extract)[0];
+                $defaultSQLSplitted[$tag] = $extract;
+            }
+        }
+        $output = '';
+        foreach ($adminPagesToUpdate as $page) {
+            if (isset($defaultSQLSplitted[$page])) {
+                if (preg_match('/'.$page.'\',\s*(?:now\(\))?\s*,\s*\'([\S\s]*)\',\s*\'\'\s*,\s*\'{{WikiName}}\',\s*\'{{WikiName}}\', \'(?:Y|N)\', \'page\', \'\'/U', $defaultSQLSplitted[$page], $matches)) {
+                    $pageContent = str_replace('\\"', '"', $matches[1]);
+                    $pageContent = str_replace('\\\'', '\'', $pageContent);
+                    $pageContent = str_replace('{{rootPage}}', $this->params->get('root_page'), $pageContent);
+                    $pageContent = str_replace('{{url}}', $this->params->get('base_url'), $pageContent);
+                    if ($this->getService(PageManager::class)->save($page, $pageContent) !== 0) {
+                        $output .= (!empty($output) ? ', ':'')._t('NO_RIGHT_TO_WRITE_IN_THIS_PAGE').$page;
+                    }
+                }
+            } else {
+                $output .= (!empty($output) ? ', ':'').str_replace('{{page}}', $page, _t('UPDATE_PAGE_NOT_FOUND_IN_DEFAULT_SQL'));
+            }
+        }
         return [empty($output),$output];
     }
 }

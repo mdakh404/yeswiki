@@ -47,7 +47,7 @@ class ImageField extends FileField
         $js = 'function getOrientation(file, callback) {
           var reader = new FileReader();
           reader.onload = function(e) {
-        
+
             var view = new DataView(e.target.result);
             if (view.getUint16(0, false) != 0xFFD8) return callback(-2);
             var length = view.byteLength, offset = 2;
@@ -193,7 +193,7 @@ class ImageField extends FileField
             $filePath = BAZ_CHEMIN_UPLOAD . $fileName;
 
             if (preg_match("/(gif|jpeg|png|jpg)$/i", $fileName)) {
-                if (!file_exists($filePath) && !$this->wiki->services->get(SecurityController::class)->isWikiHibernated()) {
+                if (!file_exists($filePath) && !$this->getService(SecurityController::class)->isWikiHibernated()) {
                     file_put_contents($filePath, file_get_contents($_POST['data-'.$this->propertyName]));
                     chmod($filePath, 0755);
 
