@@ -29,7 +29,7 @@ class ApiController extends YesWikiController
         $urlGroup = $this->wiki->Href('', 'api/group');
         $output .= '<h2>'._t('GROUPS').'</h2>'."\n".
             'GET <code><a href="'.$urlGroup.'">'.$urlGroup.'</a></code><br />';
-        
+
         $urlPages = $this->wiki->Href('', 'api/pages');
         $output .= '<h2>'._t('PAGES').'</h2>'."\n".
             'GET <code><a href="'.$urlPages.'">'.$urlPages.'</a></code><br />';
@@ -95,7 +95,6 @@ class ApiController extends YesWikiController
 
         return new ApiResponse($this->wiki->GetGroupsList());
     }
-<<<<<<< HEAD
 
     /**
      * @Route("/api/reactions", methods={"GET"}, options={"acl":{"public"}})
@@ -236,8 +235,8 @@ class ApiController extends YesWikiController
                 Response::HTTP_UNAUTHORIZED
             );
         }
-=======
-    
+    }
+
     /**
      * @Route("/api/pages",options={"acl":{"public"}})
      */
@@ -259,6 +258,5 @@ class ApiController extends YesWikiController
             $pagesWithTag[$page['tag']] = $page;
         }
         return new ApiResponse(empty($pagesWithTag) ? null : $pagesWithTag);
->>>>>>> origin/doryphore
     }
 }
