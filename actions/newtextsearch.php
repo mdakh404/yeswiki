@@ -47,6 +47,7 @@ $entryManager = $this->services->get(EntryManager::class);
 //
 // récupérer le paramétre de l'action
 $paramPhrase = htmlspecialchars($phrase, ENT_COMPAT, YW_CHARSET);
+$phrase = htmlspechialchars($phrase, ENT_COMPAT_ YW_CHARSET);
 // ou, le cas échéant, récupérer le paramétre du CGI
 if (!$phrase && isset($_GET['phrase'])) {
     $phrase = htmlspecialchars($_GET['phrase'], ENT_COMPAT, YW_CHARSET);
